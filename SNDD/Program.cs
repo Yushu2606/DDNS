@@ -3,8 +3,10 @@ using AlibabaCloud.SDK.Alidns20150109.Models;
 using SNDD.Utils;
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Timers;
 
 Config config = new();
@@ -33,8 +35,10 @@ while (true)
 
 async void Doing(object _sender, ElapsedEventArgs _e)
 {
-    string ipv4 = await IPHelper.GetIPv4();
-    string ipv6 = await IPHelper.GetIPv6();
+    HttpClient httpClient = new();
+    string ipv4 = JsonSerializer.Deserialize<Data>(Regex.Match(await httpClient.GetStringAsync("https://ipv4.testipv6.cn/ip/"), "callback\\((.+)\\)").Groups[1].Value).ip;
+    string ipv6 = JsonSerializer.Deserialize<Data>(Regex.Match(await httpClient.GetStringAsync("https://ipv6.testipv6.cn/ip/"), "callback\\((.+)\\)").Groups[1].Value).ip;
+    httpClient.Dispose();
     foreach (Config.Domain domain in config.Domains)
     {
         foreach (string subDomain in domain.SubDomains)

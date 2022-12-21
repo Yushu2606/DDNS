@@ -14,3 +14,12 @@ internal struct Config
     }
     public double Interval { get; set; }
 }
+
+public struct Data
+{
+    public string ip { get; set; }
+    public string type { get; set; }
+    public string subtype { get; set; }
+    public string via { get; set; }
+    public string padding { get; set; }
+}
