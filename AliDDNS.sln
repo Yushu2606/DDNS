@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.4.33205.214
+VisualStudioVersion = 17.6.33417.168
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SNDD", "SNDD\SNDD.csproj", "{FF602C5A-DF23-473D-8731-F82C059E9A5D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AliDDNS", "src\AliDDNS.csproj", "{FF602C5A-DF23-473D-8731-F82C059E9A5D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
