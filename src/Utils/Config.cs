@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace SNDD.Utils;
@@ -10,8 +9,8 @@ internal readonly record struct Config
     public Domain[] Domains { get; init; }
     public readonly record struct Domain
     {
-        public string Name { get; init; }
-        public string[] SubDomains { get; init; }
+        public required string Name { get; init; }
+        public required string[] SubDomains { get; init; }
     }
     public double Interval { get; init; }
 }
@@ -19,7 +18,7 @@ internal readonly record struct Config
 public readonly record struct Data
 {
     [JsonPropertyName("ip")]
-    public string IP { get; init; }
+    public required string IP { get; init; }
     [JsonPropertyName("type")]
     public string Type { get; init; }
     [JsonPropertyName("subtype")]

@@ -33,7 +33,7 @@ while (true)
 async void Doing(object _sender, ElapsedEventArgs _e)
 {
     HttpClient httpClient = new();
-    bool TryGet<T>(Func<Task<T>> action, out Task<T> @return)
+    bool TryGet<T>(Func<T> action, out T @return)
     {
         try
         {
@@ -47,8 +47,8 @@ async void Doing(object _sender, ElapsedEventArgs _e)
         @return = default;
         return false;
     }
-    bool hasIPv4 = TryGet(async () => JsonSerializer.Deserialize<Data>(DataRegex().Match(await httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/")).Groups[1].Value).IP, out Task<string> ipv4);
-    bool hasIPv6 = TryGet(async () => JsonSerializer.Deserialize<Data>(DataRegex().Match(await httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/")).Groups[1].Value).IP, out Task<string> ipv6);
+    bool hasIPv4 = TryGet(() => JsonSerializer.Deserialize<Data>(DataRegex().Match(httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/").Result).Groups[1].Value).IP, out string ipv4);
+    bool hasIPv6 = TryGet(() => JsonSerializer.Deserialize<Data>(DataRegex().Match(httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/").Result).Groups[1].Value).IP, out string ipv6);
     httpClient.Dispose();
     foreach (Config.Domain domain in config.Domains)
     {
@@ -71,18 +71,18 @@ async void Doing(object _sender, ElapsedEventArgs _e)
                 switch (record.Type)
                 {
                     case "A":
-                        if (!hasIPv4 || record.Value == await ipv4)
+                        if (!hasIPv4 || record.Value == ipv4)
                         {
                             continue;
                         }
-                        updateRequest.Value = await ipv4;
+                        updateRequest.Value = ipv4;
                         break;
                     case "AAAA":
-                        if (!hasIPv6 || record.Value == await ipv6)
+                        if (!hasIPv6 || record.Value == ipv6)
                         {
                             continue;
                         }
-                        updateRequest.Value = await ipv6;
+                        updateRequest.Value = ipv6;
                         break;
                     default:
                         continue;
