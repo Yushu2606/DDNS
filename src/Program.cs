@@ -62,40 +62,40 @@ async void Doing(object _sender, ElapsedEventArgs _e)
             try
             {
                 DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
+                foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords.Record)
+                {
+                    UpdateDomainRecordRequest updateRequest = new()
+                    {
+                        RecordId = record.RecordId,
+                        RR = record.RR,
+                        Type = record.Type
+                    };
+                    switch (record.Type)
+                    {
+                        case "A":
+                            if (!hasIPv4 || record.Value == ipv4)
+                            {
+                                continue;
+                            }
+                            updateRequest.Value = ipv4;
+                            break;
+                        case "AAAA":
+                            if (!hasIPv6 || record.Value == ipv6)
+                            {
+                                continue;
+                            }
+                            updateRequest.Value = ipv6;
+                            break;
+                        default:
+                            continue;
+                    }
+                    _ = await client.UpdateDomainRecordAsync(updateRequest);
+                }
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
                 continue;
-            }
-            foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords.Record)
-            {
-                UpdateDomainRecordRequest updateRequest = new()
-                {
-                    RecordId = record.RecordId,
-                    RR = record.RR,
-                    Type = record.Type
-                };
-                switch (record.Type)
-                {
-                    case "A":
-                        if (!hasIPv4 || record.Value == ipv4)
-                        {
-                            continue;
-                        }
-                        updateRequest.Value = ipv4;
-                        break;
-                    case "AAAA":
-                        if (!hasIPv6 || record.Value == ipv6)
-                        {
-                            continue;
-                        }
-                        updateRequest.Value = ipv6;
-                        break;
-                    default:
-                        continue;
-                }
-                _ = await client.UpdateDomainRecordAsync(updateRequest);
             }
         }
     }

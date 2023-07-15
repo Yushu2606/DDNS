@@ -2,12 +2,12 @@ using System.Text.Json.Serialization;
 
 namespace SNDD.Utils;
 
-internal readonly record Config
+internal record Config
 {
     public string AccessKeyId { get; init; }
     public string AccessKeySecret { get; init; }
     public Domain[] Domains { get; init; }
-    public readonly record Domain
+    public record Domain
     {
         public required string Name { get; init; }
         public required string[] SubDomains { get; init; }
@@ -15,7 +15,7 @@ internal readonly record Config
     public double Interval { get; init; }
 }
 
-public readonly record Data
+public record Data
 {
     [JsonPropertyName("ip")]
     public required string IP { get; init; }
