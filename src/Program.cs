@@ -59,7 +59,15 @@ async void Doing(object _sender, ElapsedEventArgs _e)
                 DomainName = domain.Name,
                 RRKeyWord = subDomain
             };
-            DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
+            try
+            {
+                DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                continue;
+            }
             foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords.Record)
             {
                 UpdateDomainRecordRequest updateRequest = new()
