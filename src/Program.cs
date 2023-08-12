@@ -1,12 +1,11 @@
-using AlibabaCloud.SDK.Alidns20150109;
-using AlibabaCloud.SDK.Alidns20150109.Models;
-using SNDD.Utils;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Timers;
+using AlibabaCloud.SDK.Alidns20150109;
+using AlibabaCloud.SDK.Alidns20150109.Models;
+using AliDynamicDomainNameServer.Utils;
 
-Config config = new();
+Config config = new(string.Empty, string.Empty, Array.Empty<Domain>(), default);
 if (!File.Exists("config.json"))
 {
     File.WriteAllText("config.json", JsonSerializer.Serialize(config, new JsonSerializerOptions
@@ -15,25 +14,26 @@ if (!File.Exists("config.json"))
         WriteIndented = true
     }));
 }
-config = JsonSerializer.Deserialize<Config>(File.ReadAllText("config.json"));
+Config? readedConfig = JsonSerializer.Deserialize<Config>(File.ReadAllText("config.json"));
+if (readedConfig is not null)
+{
+    config = readedConfig;
+}
 Client client = new(new()
 {
     AccessKeyId = config.AccessKeyId,
     AccessKeySecret = config.AccessKeySecret
 });
-Doing(default, default);
-System.Timers.Timer timer = new(config.Interval);
-timer.Elapsed += Doing;
-timer.Start();
 while (true)
 {
-    _ = Console.Read();
+    Doing();
+    Thread.Sleep(config.Interval);
 }
 
-async void Doing(object _sender, ElapsedEventArgs _e)
+async void Doing()
 {
     HttpClient httpClient = new();
-    bool TryGet<T>(Func<T> action, out T @return)
+    bool TryGet<T>(Func<T> action, out T? @return)
     {
         try
         {
@@ -47,10 +47,10 @@ async void Doing(object _sender, ElapsedEventArgs _e)
         @return = default;
         return false;
     }
-    bool hasIPv4 = TryGet(() => JsonSerializer.Deserialize<Data>(DataRegex().Match(httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/").Result).Groups[1].Value).IP, out string ipv4);
-    bool hasIPv6 = TryGet(() => JsonSerializer.Deserialize<Data>(DataRegex().Match(httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/").Result).Groups[1].Value).IP, out string ipv6);
+    bool hasIPv4 = TryGet(() => JsonSerializer.Deserialize<Data>(DataRegex().Match(httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/").Result).Groups[1].Value)?.IP, out string? ipv4);
+    bool hasIPv6 = TryGet(() => JsonSerializer.Deserialize<Data>(DataRegex().Match(httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/").Result).Groups[1].Value)?.IP, out string? ipv6);
     httpClient.Dispose();
-    foreach (Config.Domain domain in config.Domains)
+    foreach (Domain domain in config.Domains)
     {
         foreach (string subDomain in domain.SubDomains)
         {
@@ -89,7 +89,7 @@ async void Doing(object _sender, ElapsedEventArgs _e)
                         default:
                             continue;
                     }
-                    _ = await client.UpdateDomainRecordAsync(updateRequest);
+                    await client.UpdateDomainRecordAsync(updateRequest);
                 }
             }
             catch (Exception ex)

@@ -1,30 +1,13 @@
 using System.Text.Json.Serialization;
 
-namespace SNDD.Utils;
+namespace AliDynamicDomainNameServer.Utils;
 
-internal record Config
-{
-    public string AccessKeyId { get; init; }
-    public string AccessKeySecret { get; init; }
-    public Domain[] Domains { get; init; }
-    public record Domain
-    {
-        public required string Name { get; init; }
-        public required string[] SubDomains { get; init; }
-    }
-    public double Interval { get; init; }
-}
+internal record Config(string AccessKeyId, string AccessKeySecret, Domain[] Domains, int Interval);
 
-public record Data
-{
-    [JsonPropertyName("ip")]
-    public required string IP { get; init; }
-    [JsonPropertyName("type")]
-    public string Type { get; init; }
-    [JsonPropertyName("subtype")]
-    public string Subtype { get; init; }
-    [JsonPropertyName("via")]
-    public string Via { get; init; }
-    [JsonPropertyName("padding")]
-    public string Padding { get; init; }
-}
+public record Domain(string Name, string[] SubDomains);
+
+public record Data([property: JsonPropertyName("ip")] string IP,
+                   [property: JsonPropertyName("type")] string Type,
+                   [property: JsonPropertyName("subtype")] string Subtype,
+                   [property: JsonPropertyName("via")] string Via,
+                   [property: JsonPropertyName("padding")] string Padding);
