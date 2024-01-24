@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using System.Text.Encodings.Web;
 using System.Text.Json;
+using Tea;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.Sources.Clear();
@@ -29,76 +30,93 @@ Client client = new(new()
 });
 while (true)
 {
-    using HttpClient httpClient = new();
-    string? ipv4 = default;
-    string? ipv6 = default;
     try
     {
-        string response = await httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/");
-        string dataString = Regex.DataRegex().Match(response).Groups[1].Value;
-        Data? data = JsonSerializer.Deserialize<Data>(dataString);
-        ipv4 = data!.Ip;
-    }
-    catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
-    {
-    }
-
-    try
-    {
-        string response = await httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/");
-        string dataString = Regex.DataRegex().Match(response).Groups[1].Value;
-        Data? data = JsonSerializer.Deserialize<Data>(dataString);
-        ipv6 = data!.Ip;
-    }
-    catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
-    {
-    }
-
-    foreach (Domain domain in config.Domains)
-    {
-        foreach (string subDomain in domain.SubDomains)
+        using HttpClient httpClient = new();
+        string? ipv4 = default;
+        string? ipv6 = default;
+        try
         {
-            DescribeDomainRecordsRequest request = new()
+            string response = await httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/");
+            string dataString = Regex.DataRegex().Match(response).Groups[1].Value;
+            Data? data = JsonSerializer.Deserialize<Data>(dataString);
+            ipv4 = data!.Ip;
+        }
+        catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
+        {
+        }
+
+        try
+        {
+            string response = await httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/");
+            string dataString = Regex.DataRegex().Match(response).Groups[1].Value;
+            Data? data = JsonSerializer.Deserialize<Data>(dataString);
+            ipv6 = data!.Ip;
+        }
+        catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
+        {
+        }
+
+        foreach (Domain domain in config.Domains)
+        {
+            foreach (string subDomain in domain.SubDomains)
             {
-                DomainName = domain.Name,
-                RRKeyWord = subDomain
-            };
-            DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
-            foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.
-                         DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords
-                         .Record)
-            {
-                UpdateDomainRecordRequest updateRequest = new()
+                DescribeDomainRecordsRequest request = new()
                 {
-                    RecordId = record.RecordId,
-                    RR = record.RR,
-                    Type = record.Type
+                    DomainName = domain.Name,
+                    RRKeyWord = subDomain
                 };
-                switch (record.Type)
+                DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
+                foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.
+                             DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords
+                             .Record)
                 {
-                    case "A":
-                        if (!string.IsNullOrWhiteSpace(ipv4) || record.Value == ipv4)
-                        {
-                            continue;
-                        }
+                    UpdateDomainRecordRequest updateRequest = new()
+                    {
+                        Line = record.Line,
+                        Priority = record.Priority,
+                        RR = record.RR,
+                        RecordId = record.RecordId,
+                        TTL = record.TTL,
+                        Type = record.Type
+                    };
+                    switch (record.Type)
+                    {
+                        case "A":
+                            if (!string.IsNullOrWhiteSpace(ipv4) || record.Value == ipv4)
+                            {
+                                continue;
+                            }
 
-                        updateRequest.Value = ipv4;
-                        break;
-                    case "AAAA":
-                        if (!string.IsNullOrWhiteSpace(ipv6) || record.Value == ipv6)
-                        {
-                            continue;
-                        }
+                            updateRequest.Value = ipv4;
+                            break;
+                        case "AAAA":
+                            if (!string.IsNullOrWhiteSpace(ipv6) || record.Value == ipv6)
+                            {
+                                continue;
+                            }
 
-                        updateRequest.Value = ipv6;
-                        break;
-                    default:
-                        continue;
+                            updateRequest.Value = ipv6;
+                            break;
+                        default:
+                            continue;
+                    }
+
+                    try
+                    {
+                        await client.UpdateDomainRecordAsync(updateRequest);
+                    }
+                    catch (TeaException)
+                    {
+                    }
                 }
-
-                await client.UpdateDomainRecordAsync(updateRequest);
             }
         }
+    }
+    catch (Exception ex)
+    {
+        Directory.CreateDirectory("logs");
+        await File.AppendAllTextAsync($"logs/{DateTime.Now:yy-MM-ddTHH-mm-ss}.log", ex.ToString());
     }
 
     await Task.Delay(config.Interval);
