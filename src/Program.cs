@@ -37,21 +37,28 @@ while (true)
         string? ipv6 = default;
         try
         {
-            string response = await httpClient.GetStringAsync("https://ipv4.test-ipv6.com/ip/");
-            string dataString = Regex.DataRegex().Match(response).Groups[1].Value;
-            Data? data = JsonSerializer.Deserialize<Data>(dataString);
-            ipv4 = data!.Ip;
-        }
-        catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
-        {
-        }
+            string response = await httpClient.GetStringAsync("http://192.168.1.1/fh_get_wan_info.ajax");
+            Data? data = JsonSerializer.Deserialize<Data>(response, new JsonSerializerOptions
+            {
+                AllowTrailingCommas = true
+            });
+            foreach (WanConnect wanConnect in data!.WanConnects)
+            {
+                if (wanConnect.IfName is not "ppp1.3")
+                {
+                    continue;
+                }
 
-        try
-        {
-            string response = await httpClient.GetStringAsync("https://ipv6.test-ipv6.com/ip/");
-            string dataString = Regex.DataRegex().Match(response).Groups[1].Value;
-            Data? data = JsonSerializer.Deserialize<Data>(dataString);
-            ipv6 = data!.Ip;
+                if (wanConnect.IPv4Enabled is "1")
+                {
+                    ipv4 = wanConnect.ExternalIPAddress;
+                }
+
+                if (wanConnect.IPv6Enabled is "1")
+                {
+                    ipv6 = wanConnect.IPv6ExternalAddress;
+                }
+            }
         }
         catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
         {
@@ -83,7 +90,7 @@ while (true)
                     switch (record.Type)
                     {
                         case "A":
-                            if (!string.IsNullOrWhiteSpace(ipv4) || record.Value == ipv4)
+                            if (!string.IsNullOrWhiteSpace(ipv4) || (record.Value == ipv4))
                             {
                                 continue;
                             }
@@ -91,7 +98,7 @@ while (true)
                             updateRequest.Value = ipv4;
                             break;
                         case "AAAA":
-                            if (!string.IsNullOrWhiteSpace(ipv6) || record.Value == ipv6)
+                            if (!string.IsNullOrWhiteSpace(ipv6) || (record.Value == ipv6))
                             {
                                 continue;
                             }
