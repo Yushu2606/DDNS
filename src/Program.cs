@@ -3,6 +3,8 @@ using AlibabaCloud.SDK.Alidns20150109.Models;
 using AliyunDynamicDomainNameServer.Utils;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using System.Net;
+using System.Net.Sockets;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using Tea;
@@ -33,37 +35,20 @@ while (true)
     try
     {
         using HttpClient httpClient = new();
-        string? ipv4 = default;
-        string? ipv6 = default;
-        try
+        string wanInfo = await httpClient.GetStringAsync("http://192.168.1.1/fh_get_wan_info.ajax");
+        Data? data = JsonSerializer.Deserialize<Data>(wanInfo, new JsonSerializerOptions
         {
-            string response = await httpClient.GetStringAsync("http://192.168.1.1/fh_get_wan_info.ajax");
-            Data? data = JsonSerializer.Deserialize<Data>(response, new JsonSerializerOptions
-            {
-                AllowTrailingCommas = true
-            });
-            foreach (WanConnect wanConnect in data!.WanConnects)
-            {
-                if (wanConnect.IfName is not "ppp1.3")
-                {
-                    continue;
-                }
-
-                if (wanConnect.IPv4Enabled is "1")
-                {
-                    ipv4 = wanConnect.ExternalIPAddress;
-                }
-
-                if (wanConnect.IPv6Enabled is "1")
-                {
-                    ipv6 = wanConnect.IPv6ExternalAddress;
-                }
-            }
-        }
-        catch (Exception ex) when (ex is NullReferenceException or HttpRequestException)
-        {
-        }
-
+            AllowTrailingCommas = true
+        });
+        string? ipv4 =
+            (from wanConnect in data!.WanConnects
+                where wanConnect.IfName is "ppp1.3"
+                where wanConnect.IPv4Enabled is "1"
+                select wanConnect.ExternalIPAddress).FirstOrDefault();
+        string? ipv6 =
+            (from address in Dns.GetHostAddresses(Dns.GetHostName())
+                where address.AddressFamily is AddressFamily.InterNetworkV6
+                select address.ToString()).LastOrDefault();
         foreach (Domain domain in config.Domains)
         {
             foreach (string subDomain in domain.SubDomains)
@@ -80,17 +65,14 @@ while (true)
                 {
                     UpdateDomainRecordRequest updateRequest = new()
                     {
-                        Line = record.Line,
-                        Priority = record.Priority,
-                        RR = record.RR,
                         RecordId = record.RecordId,
-                        TTL = record.TTL,
+                        RR = record.RR,
                         Type = record.Type
                     };
                     switch (record.Type)
                     {
                         case "A":
-                            if (!string.IsNullOrWhiteSpace(ipv4) || (record.Value == ipv4))
+                            if (string.IsNullOrWhiteSpace(ipv4) || (record.Value == ipv4))
                             {
                                 continue;
                             }
@@ -98,7 +80,7 @@ while (true)
                             updateRequest.Value = ipv4;
                             break;
                         case "AAAA":
-                            if (!string.IsNullOrWhiteSpace(ipv6) || (record.Value == ipv6))
+                            if (string.IsNullOrWhiteSpace(ipv6) || (record.Value == ipv6))
                             {
                                 continue;
                             }
@@ -113,8 +95,10 @@ while (true)
                     {
                         await client.UpdateDomainRecordAsync(updateRequest);
                     }
-                    catch (TeaException)
+                    catch (TeaException ex)
                     {
+                        Directory.CreateDirectory("logs");
+                        await File.AppendAllTextAsync($"logs/{DateTime.Now:yy-MM-ddTHH-mm-ss}.log", ex.ToString());
                     }
                 }
             }
