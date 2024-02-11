@@ -9,6 +9,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using Tea;
 
+DateTime startTime = DateTime.Now;
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Configuration.Sources.Clear();
 IHostEnvironment env = builder.Environment;
@@ -30,85 +31,78 @@ Client client = new(new()
     AccessKeyId = config.AccessKeyId,
     AccessKeySecret = config.AccessKeySecret
 });
-while (true)
+using HttpClient httpClient = new();
+string wanInfo = await httpClient.GetStringAsync("http://192.168.1.1/fh_get_wan_info.ajax");
+Data? data = JsonSerializer.Deserialize<Data>(wanInfo, new JsonSerializerOptions
 {
-    try
+    AllowTrailingCommas = true
+});
+string? ipv4 =
+    (from wanConnect in data!.WanConnects
+        where wanConnect.IfName is "ppp1.3"
+        where wanConnect.IPv4Enabled is "1"
+        select wanConnect.ExternalIPAddress).FirstOrDefault();
+string? ipv6 =
+    (from address in Dns.GetHostAddresses(Dns.GetHostName())
+        where address.AddressFamily is AddressFamily.InterNetworkV6
+        select address.ToString()).LastOrDefault();
+foreach (Domain domain in config.Domains)
+{
+    foreach (string subDomain in domain.SubDomains)
     {
-        using HttpClient httpClient = new();
-        string wanInfo = await httpClient.GetStringAsync("http://192.168.1.1/fh_get_wan_info.ajax");
-        Data? data = JsonSerializer.Deserialize<Data>(wanInfo, new JsonSerializerOptions
+        DescribeDomainRecordsRequest request = new()
         {
-            AllowTrailingCommas = true
-        });
-        string? ipv4 =
-            (from wanConnect in data!.WanConnects
-                where wanConnect.IfName is "ppp1.3"
-                where wanConnect.IPv4Enabled is "1"
-                select wanConnect.ExternalIPAddress).FirstOrDefault();
-        string? ipv6 =
-            (from address in Dns.GetHostAddresses(Dns.GetHostName())
-                where address.AddressFamily is AddressFamily.InterNetworkV6
-                select address.ToString()).LastOrDefault();
-        foreach (Domain domain in config.Domains)
+            DomainName = domain.Name,
+            RRKeyWord = subDomain
+        };
+        DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
+        foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.
+                     DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords
+                     .Record)
         {
-            foreach (string subDomain in domain.SubDomains)
+            UpdateDomainRecordRequest updateRequest = new()
             {
-                DescribeDomainRecordsRequest request = new()
+                RecordId = record.RecordId,
+                RR = record.RR,
+                Type = record.Type
+            };
+            switch (record.Type)
+            {
+                case "A":
+                    if (string.IsNullOrWhiteSpace(ipv4) || (record.Value == ipv4))
+                    {
+                        continue;
+                    }
+
+                    updateRequest.Value = ipv4;
+                    break;
+                case "AAAA":
+                    if (string.IsNullOrWhiteSpace(ipv6) || (record.Value == ipv6))
+                    {
+                        continue;
+                    }
+
+                    updateRequest.Value = ipv6;
+                    break;
+                default:
+                    continue;
+            }
+
+            try
+            {
+                await client.UpdateDomainRecordAsync(updateRequest);
+            }
+            catch (TeaException ex)
+            {
+                Directory.CreateDirectory("logs");
+                string logFilePath = $"logs/{startTime:yy-MM-ddTHH-mm-ss}.log";
+                if (File.Exists(logFilePath))
                 {
-                    DomainName = domain.Name,
-                    RRKeyWord = subDomain
-                };
-                DescribeDomainRecordsResponse response = await client.DescribeDomainRecordsAsync(request);
-                foreach (DescribeDomainRecordsResponseBody.DescribeDomainRecordsResponseBodyDomainRecords.
-                             DescribeDomainRecordsResponseBodyDomainRecordsRecord record in response.Body.DomainRecords
-                             .Record)
-                {
-                    UpdateDomainRecordRequest updateRequest = new()
-                    {
-                        RecordId = record.RecordId,
-                        RR = record.RR,
-                        Type = record.Type
-                    };
-                    switch (record.Type)
-                    {
-                        case "A":
-                            if (string.IsNullOrWhiteSpace(ipv4) || (record.Value == ipv4))
-                            {
-                                continue;
-                            }
-
-                            updateRequest.Value = ipv4;
-                            break;
-                        case "AAAA":
-                            if (string.IsNullOrWhiteSpace(ipv6) || (record.Value == ipv6))
-                            {
-                                continue;
-                            }
-
-                            updateRequest.Value = ipv6;
-                            break;
-                        default:
-                            continue;
-                    }
-
-                    try
-                    {
-                        await client.UpdateDomainRecordAsync(updateRequest);
-                    }
-                    catch (TeaException ex)
-                    {
-                        Directory.CreateDirectory("logs");
-                        await File.AppendAllTextAsync($"logs/{DateTime.Now:yy-MM-ddTHH-mm-ss}.log", ex.ToString());
-                    }
+                    await File.AppendAllTextAsync(logFilePath, "\n");
                 }
+
+                await File.AppendAllTextAsync(logFilePath, ex.ToString());
             }
         }
     }
-    catch (Exception ex)
-    {
-        Directory.CreateDirectory("logs");
-        await File.AppendAllTextAsync($"logs/{DateTime.Now:yy-MM-ddTHH-mm-ss}.log", ex.ToString());
-    }
-
-    await Task.Delay(config.Interval);
 }
