@@ -39,7 +39,7 @@ Data? data = JsonSerializer.Deserialize<Data>(wanInfo, new JsonSerializerOptions
 });
 string? ipv4 =
     (from wanConnect in data!.WanConnects
-        where wanConnect.IfName.StartWith("ppp")
+        where wanConnect.IfName.StartsWith("ppp")
         where wanConnect.IPv4Enabled is "1"
         select wanConnect.ExternalIPAddress).FirstOrDefault();
 string? ipv6 =
