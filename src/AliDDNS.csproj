@@ -15,8 +15,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="AlibabaCloud.SDK.Alidns20150109" Version="3.0.12"/>
-        <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0"/>
+        <PackageReference Include="AlibabaCloud.SDK.Alidns20150109" Version="3.5.1"/>
+        <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0-preview.6.24327.7"/>
     </ItemGroup>
 
 </Project>

@@ -69,7 +69,7 @@ foreach (Domain domain in config.Domains)
             switch (record.Type)
             {
                 case "A":
-                    if (string.IsNullOrWhiteSpace(ipv4) || (record.Value == ipv4))
+                    if (string.IsNullOrWhiteSpace(ipv4) || record.Value == ipv4)
                     {
                         continue;
                     }
@@ -77,7 +77,7 @@ foreach (Domain domain in config.Domains)
                     updateRequest.Value = ipv4;
                     break;
                 case "AAAA":
-                    if (string.IsNullOrWhiteSpace(ipv6) || (record.Value == ipv6))
+                    if (string.IsNullOrWhiteSpace(ipv6) || record.Value == ipv6)
                     {
                         continue;
                     }
